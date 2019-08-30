@@ -38,4 +38,31 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
 
   }
 
+  mapping (string => uint256) public tokenPrice;
+  mapping (string => uint256) public tokenCurve;
+
+  mapping (string => bool) public votedInToken;
+  mapping (string => uint256) public tokenVotes;
+  mapping (address => mapping (string => bool)) public votedOnToken;
+
+  function addToken(string memory _uri, uint256 _price, uint256 _curve) public {
+    require(isMember(msg.sender),"NiftyDao::addToken must be a member");
+    require(!votedOnToken[msg.sender][_uri],"NiftyDao::addMember cant vote twice");
+    votedOnToken[msg.sender][_uri] = true;
+    if(tokenPrice[_uri]>0){
+      require(tokenPrice[_uri]==_price,"NiftyDao::addToken votes must have the same price");
+      require(tokenCurve[_uri]==_curve,"NiftyDao::addToken votes must have the same curve");
+    }else{
+      tokenPrice[_uri]=_price;
+      tokenCurve[_uri]=_curve;
+    }
+    tokenVotes[_uri] = tokenVotes[_uri]+1;
+    if(tokenVotes[_uri]>=memberCount){
+      votedInToken[_uri] = true;
+      emit NewToken(_uri);
+    }
+  }
+  event NewToken(string uri);
+
+
 }

@@ -22,6 +22,7 @@ class App extends Component {
     this.setState(update)
   }
   async poll(){
+
     let memberCount = await this.state.contracts["NiftyDao"].memberCount().call()
     let members = []
     for(let m=0;m < memberCount;m++)
@@ -31,7 +32,19 @@ class App extends Component {
         members.push(thisMember)
       }
     }
+
+    let tokens = []
+    for(let e in this.state.tokenEvents){
+      let uri = this.state.tokenEvents[e].uri
+      tokens.push({
+        uri: uri,
+        price: await this.state.contracts["NiftyDao"].tokenPrice(uri).call(),
+        curve: await this.state.contracts["NiftyDao"].tokenCurve(uri).call(),
+      })
+    }
+
     this.setState({
+      tokens: tokens,
       memberCount: memberCount,
       members: members,
     })
@@ -109,6 +122,20 @@ class App extends Component {
         })
       }
 
+      let tokens = []
+      if(this.state.tokens){
+        tokens = this.state.tokens.map((token)=>{
+          return (
+            <div style={{paddingTop:40}}>
+              <div>
+                <img style={{maxWidth:50,maxHeight:50}} src={token.uri}></img>
+              </div>
+              {token.price} / {token.curve}
+            </div>
+          )
+        })
+      }
+
       if(contracts){
         contractsDisplay.push(
           <div key="UI" style={{padding:30}}>
@@ -123,6 +150,48 @@ class App extends Component {
                 address={contracts["NiftyDao"]._address}
               />
             </div>
+
+            <Events
+              config={{hide:true}}
+              contract={contracts.NiftyDao}
+              eventName={"NewToken"}
+              block={block}
+              onUpdate={(eventData,allEvents)=>{
+                this.setState({tokenEvents:allEvents})
+              }}
+            />
+
+            <div style={{padding:"10%"}}>
+              {tokens}
+            </div>
+
+            <div style={{padding:"10%"}}>
+              <div>
+                URI<input
+                      style={{verticalAlign:"middle",width:400,margin:6,maxHeight:20,padding:5,border:'2px solid #ccc',borderRadius:5}}
+                      type="text" name="addToken" value={this.state.addToken} onChange={this.handleInput.bind(this)}
+                  />
+              </div>
+              <div>
+                Price $<input
+                      style={{verticalAlign:"middle",width:100,margin:6,maxHeight:20,padding:5,border:'2px solid #ccc',borderRadius:5}}
+                      type="text" name="addTokenPrice" value={this.state.addTokenPrice} onChange={this.handleInput.bind(this)}
+                  />
+                Curve $<input
+                      style={{verticalAlign:"middle",width:100,margin:6,maxHeight:20,padding:5,border:'2px solid #ccc',borderRadius:5}}
+                      type="text" name="addTokenCurve" value={this.state.addTokenCurve} onChange={this.handleInput.bind(this)}
+                  />
+              </div>
+              <Button color={"blue"} size="2" onClick={()=>{
+                  tx(contracts.NiftyDao.addToken(this.state.addToken,this.state.addTokenPrice*10**18,this.state.addTokenCurve*10**18),240000,(receipt)=>{
+                      console.log(receipt)
+                    //  this.setState({addToken:"",addTokenPrice:"",addTokenCurve:"",})
+                  })
+                }}>
+                Add Token
+              </Button>
+            </div>
+
 
 
             <div style={{padding:"10%"}}>
