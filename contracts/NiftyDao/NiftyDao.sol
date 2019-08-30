@@ -9,10 +9,11 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
 
   constructor(string memory name, string memory symbol) ERC721Metadata(name, symbol) public {
       memberCount = members.push(msg.sender);
+      quorum = memberCount;
   }
 
 
-  
+
 
   uint256 public totalTokenCount = 0;
 
@@ -41,10 +42,15 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
 
   address[] public members;
   uint256 public memberCount;
+  uint256 public quorum;
   mapping (address => uint256) public votes;
   mapping (address => mapping (address => bool)) public voted;
+  mapping (address => bool) public exited;
 
   function isMember(address _address) public view returns (bool){
+    if(exited[_address]){
+      return false;
+    }
     for(uint m=0;m<memberCount;m++){
       if(members[m]==_address){
         return true;
@@ -59,13 +65,19 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
     require(!voted[msg.sender][_address],"NiftyDao::addMember cant vote twice");
     voted[msg.sender][_address] = true;
     votes[_address] = votes[_address]+1;
-    if(votes[_address]>=memberCount){
+    if(votes[_address]>=quorum){
       memberCount = members.push(_address);
+      quorum = quorum+1;
+      exited[_address] = false;
     }
-
   }
 
-
+  function exit() public {
+    require(isMember(msg.sender),"NiftyDao::addMember must be a member");
+    require(!exited[msg.sender],"NiftyDao::addMember cant exit twice");
+    exited[msg.sender] = true;
+    quorum = quorum-1;
+  }
 
 
 
@@ -89,7 +101,7 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
       tokenCurve[_uri]=_curve;
     }
     tokenVotes[_uri] = tokenVotes[_uri]+1;
-    if(tokenVotes[_uri]>=memberCount){
+    if(tokenVotes[_uri]>=quorum){
       votedInToken[_uri] = true;
       emit NewToken(_uri);
     }

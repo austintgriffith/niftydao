@@ -42,12 +42,15 @@ class App extends Component {
 
     let memberCount = await this.state.contracts["NiftyDao"].memberCount().call()
     let members = []
+    let quorum = await this.state.contracts["NiftyDao"].quorum().call()
+    let exits = []
     for(let m=0;m < memberCount;m++)
     {
       let thisMember = await this.state.contracts["NiftyDao"].members(m).call()
       if(members.indexOf(thisMember) < 0){
         members.push(thisMember)
       }
+      exits[members[m]] = await this.state.contracts["NiftyDao"].exited(members[m]).call()
     }
 
     let tokens = []
@@ -68,6 +71,8 @@ class App extends Component {
       tokens: tokens,
       memberCount: memberCount,
       members: members,
+      quorum: quorum,
+      exits: exits,
     })
   }
   render() {
@@ -133,7 +138,7 @@ class App extends Component {
       if(this.state.members){
         members = this.state.members.map((address)=>{
           return (
-            <div key={address+"_member"}>
+            <div key={address+"_member"} style={{opacity:this.state.exits[address]?0.25:1}}>
               <Address
                 {...this.state}
                 address={address}
@@ -261,7 +266,7 @@ class App extends Component {
 
 
             <div style={{padding:"10%"}}>
-              NiftyDao has {this.state.memberCount} active member(s)
+              NiftyDao has {this.state.quorum} active member(s)
               {members}
             </div>
 
