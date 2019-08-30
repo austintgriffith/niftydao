@@ -21,6 +21,21 @@ class App extends Component {
     update[e.target.name] = e.target.value
     this.setState(update)
   }
+  async poll(){
+    let memberCount = await this.state.contracts["NiftyDao"].memberCount().call()
+    let members = []
+    for(let m=0;m < memberCount;m++)
+    {
+      let thisMember = await this.state.contracts["NiftyDao"].members(m).call()
+      if(members.indexOf(thisMember) < 0){
+        members.push(thisMember)
+      }
+    }
+    this.setState({
+      memberCount: memberCount,
+      members: members,
+    })
+  }
   render() {
     let {web3,account,contracts,tx,gwei,block,avgBlockTime,etherscan,metaAccount} = this.state
     let connectedDisplay = []
@@ -51,6 +66,8 @@ class App extends Component {
              this.setState({
                purpose: await this.state.contracts["NiftyDao"].purpose().call()
              })
+             setInterval(this.poll.bind(this),1777)
+             setTimeout(this.poll.bind(this),7)
            })
          }}
         />
@@ -78,6 +95,20 @@ class App extends Component {
         />
       )
 
+      let members = []
+      if(this.state.members){
+        members = this.state.members.map((address)=>{
+          return (
+            <div key={address+"_member"}>
+              <Address
+                {...this.state}
+                address={address}
+              />
+            </div>
+          )
+        })
+      }
+
       if(contracts){
         contractsDisplay.push(
           <div key="UI" style={{padding:30}}>
@@ -91,6 +122,27 @@ class App extends Component {
                 {...this.state}
                 address={contracts["NiftyDao"]._address}
               />
+            </div>
+
+
+            <div style={{padding:"10%"}}>
+              NiftyDao has {this.state.memberCount} active member(s)
+              {members}
+            </div>
+
+            <div style={{padding:"10%"}}>
+              <input
+                  style={{verticalAlign:"middle",width:400,margin:6,maxHeight:20,padding:5,border:'2px solid #ccc',borderRadius:5}}
+                  type="text" name="addMember" value={this.state.addMember} onChange={this.handleInput.bind(this)}
+              />
+              <Button color={"blue"} size="2" onClick={()=>{
+                  tx(contracts.NiftyDao.addMember(this.state.addMember),120000,(receipt)=>{
+                      console.log(receipt)
+                      this.setState({addMember:""})
+                  })
+                }}>
+                Add Member
+              </Button>
             </div>
 
           </div>
