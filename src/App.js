@@ -23,6 +23,23 @@ class App extends Component {
   }
   async poll(){
 
+    let totalTokenCount = await this.state.contracts["NiftyDao"].totalTokenCount().call()
+    let allTokens = []
+    let myTokens = []
+    for(let t=0;t < totalTokenCount;t++)
+    {
+      try{
+        allTokens[t] = {
+          id: t,
+          uri: await this.state.contracts["NiftyDao"].tokenURI(t).call(),
+          owner: await this.state.contracts["NiftyDao"].ownerOf(t).call()
+        }
+        if(allTokens[t].owner.toLowerCase() == this.state.account.toLowerCase()){
+          myTokens.push(allTokens[t])
+        }
+      }catch(e){console.log(e)}
+    }
+
     let memberCount = await this.state.contracts["NiftyDao"].memberCount().call()
     let members = []
     for(let m=0;m < memberCount;m++)
@@ -38,12 +55,16 @@ class App extends Component {
       let uri = this.state.tokenEvents[e].uri
       tokens.push({
         uri: uri,
+        count: await this.state.contracts["NiftyDao"].tokenCount(uri).call(),
         price: await this.state.contracts["NiftyDao"].tokenPrice(uri).call(),
         curve: await this.state.contracts["NiftyDao"].tokenCurve(uri).call(),
       })
     }
 
     this.setState({
+      totalTokenCount: totalTokenCount,
+      allTokens: allTokens,
+      myTokens: myTokens,
       tokens: tokens,
       memberCount: memberCount,
       members: members,
@@ -125,15 +146,56 @@ class App extends Component {
       let tokens = []
       if(this.state.tokens){
         tokens = this.state.tokens.map((token)=>{
+          let foundToken
+          for(let t in this.state.myTokens){
+            if(token.uri==this.state.myTokens[t].uri){
+              foundToken = this.state.myTokens[t]
+              break
+            }
+          }
           return (
             <div style={{paddingTop:40}}>
               <div>
                 <img style={{maxWidth:50,maxHeight:50}} src={token.uri}></img>
               </div>
-              {token.price} / {token.curve}
+              <div style={{fontSize:14}}>
+                <div>
+                  Count: {token.count}
+                </div>
+              </div>
+              <Button color={"blue"} size="2" onClick={()=>{
+                  tx(contracts.NiftyDao.buyToken(token.uri),240000,"0x",token.price,(receipt)=>{
+                      console.log(receipt)
+                    //  this.setState({addToken:"",addTokenPrice:"",addTokenCurve:"",})
+                  })
+                }}>
+                Buy ${(token.price/10**18).toFixed(2)}
+              </Button>
+              <Button color={foundToken?"blue":"gray"} size="2" onClick={()=>{
+                  console.log("attempting to sell token",foundToken.id)
+                  tx(contracts.NiftyDao.sellToken(foundToken.id),240000,(receipt)=>{
+                      console.log(receipt)
+                    //  this.setState({addToken:"",addTokenPrice:"",addTokenCurve:"",})
+                  })
+                }}>
+                Sell ${((token.price-token.curve)/10**18).toFixed(2)}
+              </Button>
             </div>
           )
         })
+      }
+
+      console.log(this.state.myTokens)
+      let myTokens = []
+      if(this.state.myTokens){
+        for(let t in this.state.myTokens){
+          let token = this.state.myTokens[t]
+          myTokens.push(
+            <div>
+              #{token.id} <img style={{maxWidth:50,maxHeight:50}} src={token.uri}></img>
+            </div>
+          )
+        }
       }
 
       if(contracts){
@@ -163,6 +225,10 @@ class App extends Component {
 
             <div style={{padding:"10%"}}>
               {tokens}
+            </div>
+
+            <div style={{padding:"10%"}}>
+              {myTokens}
             </div>
 
             <div style={{padding:"10%"}}>

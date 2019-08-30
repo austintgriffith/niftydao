@@ -12,6 +12,33 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
   }
 
 
+  
+
+  uint256 public totalTokenCount = 0;
+
+  mapping (string => uint256) public tokenCount;
+
+  function buyToken(string memory _tokenURI) public payable {
+    require(votedInToken[_tokenURI],"NiftyDao::buyToken illegal token uri");
+    require(msg.value==tokenPrice[_tokenURI],"NiftyDao::buyToken wrong value");
+    _mint(msg.sender, totalTokenCount);
+    _setTokenURI(totalTokenCount, _tokenURI);
+    totalTokenCount = totalTokenCount+1;
+    tokenCount[_tokenURI] = tokenCount[_tokenURI]+1;
+    tokenPrice[_tokenURI] = tokenPrice[_tokenURI]+tokenCurve[_tokenURI];
+  }
+
+  function sellToken(uint256 tokenId) public {
+    string memory uri = tokenURI(tokenId);
+    tokenCount[uri] = tokenCount[uri]-1;
+    tokenPrice[uri] = tokenPrice[uri]-tokenCurve[uri];
+    burn(tokenId);
+    msg.sender.transfer(tokenPrice[uri]);
+  }
+
+
+
+
   address[] public members;
   uint256 public memberCount;
   mapping (address => uint256) public votes;
@@ -37,6 +64,11 @@ contract NiftyDao is ERC721MetadataMintable, ERC721Burnable {
     }
 
   }
+
+
+
+
+
 
   mapping (string => uint256) public tokenPrice;
   mapping (string => uint256) public tokenCurve;
